@@ -140,7 +140,8 @@
 	    ("goodies;*.*"  "wilbur:base;src;goodies;*.*")
 	    ("libs;**;*.*"  "wilbur:base;src;libs;**;*.*")
 	    ("doc;*.*"      "wilbur:base;doc;*.*")
-	    ("schemata;*.*" "wilbur:base;schemata;*.*")))
+	    ("schemata;*.*" "wilbur:base;schemata;*.*")
+            ("**;*.*"       "wilbur:base;**;*.*")))
     (format t "~&; \"wilbur:base;\" = ~A~%" (translate-logical-pathname "wilbur:base;"))))
 
 
@@ -155,6 +156,8 @@
   :version "2"
   :licence "NOKOS 1.0a"
   :description "WILBUR2: Nokia's Semantic Web Toolkit for CLOS"
+  :depends-on (#+mcl :de.setf.utility.bsd
+               #+sbcl :usocket)
   :components ((:file "packages")
 	       (:file "platform" :depends-on ("packages"))
 	       (:file "useful" :depends-on ("packages"))
