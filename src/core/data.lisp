@@ -401,7 +401,7 @@
       (unresolved-node (read-using *name-reader* stream t))))
 
   (defun enable-node-shorthand ()
-    (set-macro-character #\! #'inline-node-reader))
+    (set-macro-character #\! #'inline-node-reader t))
 
   (enable-node-shorthand))
 
