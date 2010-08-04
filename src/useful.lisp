@@ -132,6 +132,18 @@
   (if package (intern (string-upcase string) package) string))
 
 
+(defmacro defequal (name value &optional documentation)
+  (let ((name-var (gensym)))
+    `(defconstant ,name
+       (let ((,name-var ,value))
+         (if (boundp ',name)
+           (progn (assert (equalp (symbol-value ',name) ,name-var) ()
+                          "Previous value for constant ~a not equal to new binding: ~s."
+                          ',name ,name-var)
+                  (symbol-value ',name))
+           ,name-var))
+       ,@(when documentation (list documentation)))))
+
 ;;; --------------------------------------------------------------------------------------
 ;;;
 ;;;   STRING DICTIONARY
