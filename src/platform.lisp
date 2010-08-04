@@ -92,12 +92,13 @@
 ;;;   FEATURES, PACKAGES, ETC.
 ;;;
 
-#+(and :mcl (not :openmcl))
+#+digitool
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (pushnew :realmcl *features*)
   (require :opentransport))
 
-#+(or :excl :sbcl)
+;; #+(or :excl :sbcl)
+#+excl ;; 2010-08-03 aserve failed to build with sbcl 1.0.36
 (eval-when (:load-toplevel :compile-toplevel :execute)
   ;; adding this feature suppresses other HTTP client implementations
   (pushnew :http-using-aserve *features*)
@@ -122,14 +123,14 @@
 ;;;   LOCKS
 ;;;
 
-#-(and :mcl :CCL-5.2)                   ; already defined
+#-(and :digitool :CCL-5.2)              ; already defined
 (defmacro with-lock ((lock &rest args) &body body)
-  #+:mcl  `(with-lock-grabbed (,lock ,@args) ,@body)
+  #+(or :digitool :clozure)  `(with-lock-grabbed (,lock ,@args) ,@body)
   #+:excl `(mp:with-process-lock (,lock ,@args) ,@body)
   #+:sbcl `(sb-thread:with-recursive-lock (,lock ,@args) ,@body)
-  #-(or :mcl :excl :sbcl :lispworks) (error "No locking defined (WITH-LOCK)"))
+  #-(or :digitool :clozure :excl :sbcl :lispworks) (error "No locking defined (WITH-LOCK)"))
 
-#-(or :mcl :lispworks) ; already implemented in MCL and LW
+#-(or :digitool :lispworks :clozure) ; unless already implemented
 (defun make-lock ()
   #+:excl            (mp:make-process-lock)
   #+:sbcl            (sb-thread:make-mutex)
@@ -153,13 +154,16 @@
   (error "Cannot execute \"~A~{~@[ ~A~]~}\". No external processes" cmd args))
 
 (defun quit-lisp-process ()
-  #+:openmcl                  (ccl:quit)
+  #+(or :digitool :openmcl)   (ccl:quit)
   #+:excl                     (excl:exit)
   #+:sbcl                     (sb-ext:quit)
-  #-(or :openmcl :excl :sbcl) (warn "Don't know how to quit Lisp"))
+  #-(or :openmcl :excl :digitool :sbcl)
+  (warn "Don't know how to quit Lisp"))
 
 (defun get-env (key)
   #+:openmcl                  (ccl:getenv key)
   #+:excl                     (sys:getenv key)
+  #+:digitool                 (bsd:getenv key)
   #+:sbcl                     (sb-ext:posix-getenv (string key))
-  #-(or :openmcl :excl :sbcl) (error "Cannot get the environment variable ~S" key))
+  #-(or :openmcl :excl :digitool :sbcl)
+  (error "Cannot get the environment variable ~S" key))
