@@ -101,8 +101,8 @@
   (declare (dynamic-extent options))
   (remf options :merge-results-p)
   (when verbosep
-    (format *error-output* "~&Loading RDF: ~S..." (source-locator source))
-    (force-output *error-output*))
+    (format *standard-output* "~&;Loading RDF: ~S..." (source-locator source))
+    (force-output *standard-output*))
   (multiple-value-bind (source-desc temporary-db errors)
 		       (apply #'db-load-using-source db source options)
     (when (and source-desc temporary-db merge-results-p)
@@ -250,6 +250,12 @@
 (defmethod source-locator ((source string)) ; assuming it is a URL
   source)
 
+(defmethod source-locator ((source pathname))
+  (namestring source))
+
+(defmethod source-locator ((source logical-pathname))
+  (source-locator (translate-logical-pathname source)))
+
 (defmethod source-locator ((source url))
   (url-string source))
 
@@ -260,14 +266,26 @@
 (defmethod source-open-stream ((source string))
   (source-open-stream (make-url source)))
 
-(defmethod source-open-stream ((source file-url))
-  (values (open (url-path source)) source))
+#-digitool
+(defmethod url-pathname ((url file-url))
+  (url-path url))
+
+#+digitool
+(defmethod url-pathname ((url file-url))
+  (canonical->host-specific-path (url-path url)))
+    
+
 
 (defmethod source-open-stream ((source http-url))
   (multiple-value-bind (response true-url)
 		       (http-request source :get)
     (values (http-body response)
 	    (or true-url source))))
+
+(defmethod source-open-stream ((source file-url))
+  (values (open (url-pathname source) :direction :input)
+          source))
+  
 
 
 ;;; --------------------------------------------------------------------------------------
