@@ -93,11 +93,12 @@
   (:nicknames "W"
 	      "NOX")			; so as not to have many packages anymore
   (:use "COMMON-LISP"
-	#+:mcl "CCL"
+	#+(or :digitool :clozure) "CCL"
 	#+:excl "EXCL"
 	#+:excl "SOCKET"
 	#+:excl "MOP"
 	#+:sbcl "SB-SYS"
+        #+:sbcl "SB-GRAY"
 	#+:lispworks "MP")
   (:export "*CURRENT-PARSER*" 
 	   "*DB*" 
@@ -397,6 +398,7 @@
 	   "WITH-HTTP-RESPONSE" 
 	   "WITH-LOCK" 
 	   "WITH-RESOURCE-FROM-POOL" 
+           "WITH-SPO-CASE"
 	   "WITH-TEMPS" 
 	   "WITHOUT-CLOSURE" 
 	   "XML-ERROR" 
