@@ -365,27 +365,27 @@
 ;;;   HTTP CLIENT API
 ;;;
 
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod http-request ((url http-url) method
 			 &key (proxy (find-http-proxy))
 			      (accept "application/rdf+xml, application/xml, text/xml"))
-  (let ((time (get-universal-time)))
-    (with-open-stream (input (open-http-stream url proxy))
+  (let ((time (get-universal-time))
+        (input (open-http-stream url proxy)))
       (multiple-value-bind (status version headers)
 	                   (http-get-headers input url
 					     (ecase method (:get "GET") (:head "HEAD"))
 					     accept)
-	(make-instance 'http-message
-	  :status status :version version :headers headers :request-time time :url url
-	  :body (and (eq method :get)
-		     (let ((chunkedp
-			    (string= (get-header headers "Transfer-Encoding") "chunked"))
-			   (stream (make-http-body-stream input)))
-		       (if chunkedp
-			 (http-stream-enable-input-chunking stream)
-			 (setf (http-stream-character-count stream) 
-			       (infer-character-count headers)))
-		       stream)))))))
+        (make-instance 'http-message
+          :status status :version version :headers headers :request-time time :url url
+          :body (and (eq method :get)
+                     (let ((chunkedp
+                            (string= (get-header headers "Transfer-Encoding") "chunked"))
+                           (stream (make-http-body-stream input)))
+                       (if chunkedp
+                         (http-stream-enable-input-chunking stream)
+                         (setf (http-stream-character-count stream) 
+                               (infer-character-count headers)))
+                       stream))))))
 
 #+(and :openmcl (not :http-using-aserve))
 (defmethod http-request ((url http-url) method
@@ -436,7 +436,7 @@
 			   (compute-response parse-buffer))
       (values status version headers input))))
 
-(defconstant -new-line-string- (concatenate 'string (list #\Return #\Linefeed)))
+(defequal -new-line-string- (concatenate 'string (list #\Return #\Linefeed)))
 
 (defun make-http-request (method url-path url-host accept)
   (format nil "~@:(~A~) ~A HTTP/1.1~A~
@@ -478,6 +478,8 @@
     (dotimes (i *http-max-redirects*)
       (let* ((response (apply #'call-next-method url method args))
 	     (status (http-status response)))
+        (when *load-verbose*
+          (format *standard-output* "~&; ~a~@[ (-> ~a)~]: ~s" url true-url status))
 	(case status
 	  ;; OK
 	  (200 (return-from http-request (values response true-url)))
@@ -490,7 +492,8 @@
 		 (when stream
 		   (close stream))
 		 (setf url (make-url (strip-trailing-hash location)))
-		 (when (= status 303)
+                 ;; cache the new location for bout 'see other' and 'moved permanently'
+		 (when (or (= status 303) (= status 301))
 		   (setf true-url url))))))
 	  ;; Bad Request
 	  (400 (error 'http-bad-request))
@@ -656,7 +659,8 @@
                 c))))))
 
 (defun collect-to-char (char string &key (start 0) end downcasep)
-  (declare (type string string)
+  (declare (type character char)
+           (type string string)
            (type fixnum start)
            (optimize (speed 3) (safety 0)))
   (let ((end-index (position char string :start start :end end :test #'char=)))
@@ -867,31 +871,12 @@
 
 ;;; --------------------------------------------------------------------------------------
 ;;;
-;;;   CLASS HTTP-NETWORK-STREAM (FOR MCL)
+;;;   CLASS HTTP-BODY-STREAM (FOR MCL and sbcl)
 ;;;
 
-#+(and :realmcl (not :http-using-aserve))
-(defclass http-network-stream (ccl::opentransport-tcp-stream)
-  ((via-proxy-p
-    :initform nil
-    :initarg :via-proxy-p
-    :reader stream-via-proxy-p)
-   (url-path
-    :initarg :url-path
-    :initform nil
-    :accessor stream-url-path))
-  (:default-initargs
-    :reuse-local-port-p t
-    :writebufsize ccl::*ot-conn-outbuf-size*))
-
-
-;;; --------------------------------------------------------------------------------------
-;;;
-;;;   CLASS HTTP-BODY-STREAM (FOR MCL)
-;;;
-
-#+(and :realmcl (not :http-using-aserve))
-(defclass http-body-stream (simple-untyi-mixin input-stream)
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
+(defclass http-body-stream (simple-untyi-mixin #+ccl input-stream
+                                               #+sbcl fundamental-character-input-stream)
   ((chunkedp
     :initform nil
     :initarg :chunkedp
@@ -917,7 +902,7 @@
 ;;; Ultimately, it looks like the only solution is to implement this directly over OT, 
 ;;; which is what CL-HTTP does.  Or just tell people that we don't support read-sequence.
 
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod stream-tyi ((stream http-body-stream))
   (with-slots (network count chunkedp eofp) stream
     (cond (chunkedp 
@@ -929,7 +914,7 @@
                                                      :radix 16 :junk-allowed t)))
                       (setf count new-count)
                       (when (zerop new-count) (setf eofp t)))))
-             (declare (dynamic-extent read-chunk-length))
+             (declare (dynamic-extent #'read-chunk-length))
              (when (null count) (read-chunk-length))
              (prog1 (stream-tyi network)
                (when (zerop (decf count))
@@ -942,40 +927,123 @@
            (prog1 (stream-tyi network)
              (when (zerop (decf count))
                (setf eofp t)))))))
+
+#+sbcl
+(defmethod stream-read-char ((stream http-body-stream))
+  (or (stream-tyi stream) :eof))
+
+#+sbcl
+(defmethod stream-unread-char ((stream http-body-stream) char)
+  (stream-untyi stream char))
+
   
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod stream-close :after ((stream http-body-stream))
   (stream-close (http-stream-network-stream stream)))
   
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod stream-abort :after ((stream http-body-stream))
   (stream-abort (http-stream-network-stream stream)))
 
 
+
+
 ;;; --------------------------------------------------------------------------------------
 ;;;
-;;;   HTTP STREAM METHODS (FOR MCL)
+;;;   CLASS HTTP-NETWORK-STREAM (FOR MCL)
 ;;;
 
 #+(and :realmcl (not :http-using-aserve))
+(defclass http-network-stream (ccl::opentransport-tcp-stream)
+  ((via-proxy-p
+    :initform nil
+    :initarg :via-proxy-p
+    :reader stream-via-proxy-p)
+   (url-path
+    :initarg :url-path
+    :initform nil
+    :accessor stream-url-path))
+  (:default-initargs
+    :reuse-local-port-p t
+    :writebufsize ccl::*ot-conn-outbuf-size*))
+
+
+;;; --------------------------------------------------------------------------------------
+;;;
+;;;   CLASS HTTP-NETWORK-STREAM (FOR sbcl)
+;;;
+
+#+(and :sbcl (not :http-using-aserve))
+(progn
+  (defclass http-network-stream (sb-gray:fundamental-stream)
+    ((socket-stream
+      :initform (error "socket-stream is required.")
+      :reader stream-socket-stream)
+     (via-proxy-p
+      :initform nil
+      :initarg :via-proxy-p
+      :reader stream-via-proxy-p)
+     (url-path
+      :initarg :url-path
+      :initform nil
+      :accessor stream-url-path)))
+  
+  (defmethod initialize-instance ((instance http-network-stream)
+                                  &key host port (element-type 'character))
+    (setf (slot-value instance 'socket-stream)
+          (usocket:socket-stream (usocket:socket-connect host port :element-type element-type))))
+  
+  (defmethod stream-close ((stream http-network-stream))
+    (close (stream-socket-stream stream)))
+  
+  (defmethod stream-abort ((stream http-network-stream))
+    )
+  
+  (defmethod stream-read-char ((stream http-network-stream))
+    (or (read-char (stream-socket-stream stream) nil nil)
+        :eof))
+
+  (defmethod stream-tyi ((stream http-network-stream))
+    (read-char (stream-socket-stream stream) nil nil))
+
+  (defmethod stream-write-sequence ((stream http-network-stream) sequence &optional (start 0) end)
+    (write-sequence sequence (stream-socket-stream stream) :start start :end end))
+
+  (defmethod stream-force-output ((stream http-network-stream))
+    (force-output (stream-socket-stream stream)))
+
+  (defmethod stream-finish-output ((stream http-network-stream))
+    (finish-output (stream-socket-stream stream)))
+  )
+
+
+
+;;; --------------------------------------------------------------------------------------
+;;;
+;;;   HTTP STREAM METHODS (FOR MCL and sbcl)
+;;;
+
+#+(and (or :digitool :sbcl)  (not :http-using-aserve))
 (defmethod open-http-stream ((url http-url) (proxy http-url))
   (make-instance 'http-network-stream
     :host (url-host proxy) :port (url-port proxy) :via-proxy-p t))
 
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod open-http-stream ((url http-url) (proxy null))
   (make-instance 'http-network-stream
     :host (url-host url) :port (url-port url)))
 
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod make-http-body-stream ((stream http-network-stream))
   (make-instance 'http-body-stream :network-stream stream))
 
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod http-stream-enable-input-chunking ((stream http-body-stream))
   (setf (http-stream-chunked-p stream) t)
   (setf (http-stream-character-count stream) nil))
 
-#+(and :realmcl (not :http-using-aserve))
+#+(and (or :digitool :sbcl) (not :http-using-aserve))
 (defmethod http-stream-disable-input-chunking ((stream http-body-stream))
   (setf (http-stream-chunked-p stream) nil))
+
+
