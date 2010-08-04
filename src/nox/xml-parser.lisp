@@ -91,20 +91,20 @@
 ;;;   NAME READTABLE
 ;;;
 
-(eval-when (:compile-toplevel :load-toplevel)
-  (defconstant -name-start-characters-
-    (let ((s (concatenate 'string
-                          (loop for i from (char-code #\a) to (char-code #\z)
-                                collect (code-char i)))))
-      (concatenate 'string s (string-upcase s) "_:")))
-  (defconstant -name-characters-
-    (let ((v (make-array 256)))
-      (dotimes (i 256)
-        (setf (svref v i) nil))
-      (dolist (c (concatenate 'list -name-start-characters-
-			      (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\. #\-)))
-        (setf (svref v (char-code c)) t))
-      v)))
+
+(defequal -name-start-characters-
+  (let ((s (concatenate 'string
+                        (loop for i from (char-code #\a) to (char-code #\z)
+                              collect (code-char i)))))
+    (concatenate 'string s (string-upcase s) "_:")))
+(defequal -name-characters-
+  (let ((v (make-array 256)))
+    (dotimes (i 256)
+      (setf (svref v i) nil))
+    (dolist (c (concatenate 'list -name-start-characters-
+                            (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\. #\-)))
+      (setf (svref v (char-code c)) t))
+    v))
 
 (defvar *nr-buffer* (make-base-string 256 :adjustable t :fill-pointer 0))
 
@@ -307,12 +307,11 @@
     :initform nil
     :accessor parser-locator)))
 
-(eval-when (:compile-toplevel :load-toplevel)
-  (defconstant -standard-entities- '(("gt"   . ">")
-                                     ("lt"   . "<")
-                                     ("amp"  . "&")
-                                     ("quot" . "\"")
-                                     ("apos" . "'"))))
+(defequal -standard-entities- '(("gt"   . ">")
+                                ("lt"   . "<")
+                                ("amp"  . "&")
+                                ("quot" . "\"")
+                                ("apos" . "'")))
 
 (defmethod initialize-instance :after ((self xml-parser) &rest args)
   (declare (ignore args))

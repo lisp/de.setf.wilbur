@@ -195,32 +195,32 @@
 ;;;   RESOURCE POOLS
 ;;;
 
-#-:mcl
+#-:digitool
 (defstruct (resource-pool (:conc-name pool-))
   data
   constructor
   initializer 
   destructor)
 
-#-(or :mcl :excl :sbcl :lispworks)
+#-(or :clozure :digitool :excl :sbcl :lispworks)
 (defmacro without-interrupts (&body body)
   (warn "No working WITHOUT-INTERRUPTS in this implementation")
   `(progn ,@body))
 
-#-:mcl
+#-:digitool
 (defmacro atomic-push (thing place)
   `(without-interrupts (push ,thing ,place)))
 
-#-:mcl
+#-:digitool
 (defmacro atomic-pop (place)
   `(without-interrupts (pop ,place)))
 
 (defun allocate-resource-from-pool (pool &rest args)
-  #+:mcl
+  #+:digitool
   (declare (ignore args))
-  #+:mcl
+  #+:digitool
   (ccl::allocate-resource pool)
-  #-:mcl
+  #-:digitool
   (let ((res (or (atomic-pop (pool-data pool))
                  (apply (pool-constructor pool) args)))
         (init (pool-initializer pool)))
@@ -229,16 +229,16 @@
     res))
 
 (defun free-resource-to-pool (pool resource)
-  #+:mcl
+  #+:digitool
   (ccl::free-resource pool resource)
-  #-:mcl
+  #-:digitool
   (let ((des (pool-destructor pool)))
     (when des
       (funcall des resource))
     (atomic-push resource (pool-data pool))))
 
 (defmacro define-resource-pool (name constructor &optional initializer destructor)
-  #+:mcl
+  #+:digitool
   (let ((r (gentemp))
         (c (gentemp))
         (i (gentemp))
@@ -252,15 +252,15 @@
                           (funcall ,i ,r)))
          :initializer ,i
          :destructor ,d)))
-  #-:mcl
+  #-:digitool
   `(defparameter ,name (make-resource-pool :constructor ,constructor
                                            :initializer ,initializer
                                            :destructor ,destructor)))
 
 (defmacro with-resource-from-pool ((var pool) &body body)
-  #+:mcl
+  #+:digitool
   `(ccl::using-resource  (,var ,pool) ,@body)
-  #-:mcl
+  #-:digitool
   (let ((flag (gentemp))
         (g-pool (gentemp)))
     `(let* ((,g-pool ,pool)
@@ -381,22 +381,22 @@
            (read-char stream t nil t) ; skip #\>
            (return (concatenate 'string (nreverse chars)))))))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defmacro whitespace-char-p (char)
-    (with-temps (c)
-      `(let ((,c ,char))
-	;; let's assume this works for now :-)
-	(or (char= ,c #\Space)
-	    (not (graphic-char-p ,c)))))))
 
-(eval-when (:compile-toplevel :load-toplevel)
-  (defconstant -whitespace-chars-
-    (let ((chars nil))
-      (dotimes (i 256)
-        (let ((c (code-char i)))
-          (when (whitespace-char-p c)
-            (push c chars))))
-      (concatenate 'string chars))))
+(defmacro whitespace-char-p (char)
+  (with-temps (c)
+    `(let ((,c ,char))
+       ;; let's assume this works for now :-)
+       (or (char= ,c #\Space)
+           (not (graphic-char-p ,c))))))
+
+
+(defequal -whitespace-chars-
+  (let ((chars nil))
+    (dotimes (i 256)
+      (let ((c (code-char i)))
+        (when (whitespace-char-p c)
+          (push c chars))))
+    (concatenate 'string chars)))
 
 (defun name&prefix (string)
   (let ((i (position #\: string)))
@@ -470,11 +470,19 @@
                           (values :http (url h p (subseq u j))))))
                    (t
                     (values :http (url (subseq u 7 j) 80 (subseq u j))))))))
+        #+(or)
         ((string= u "file://" :end1 7)
          (let ((p (subseq u 7)))
            (values :file
                    `(:path ,(translate-logical-pathname
                              (canonical->host-specific-path p))))))
+        ((string= u "file://" :end1 7)
+         (let* ((p (translate-logical-pathname (subseq u 7)))
+                (directory (pathname-directory p))
+                (filename (file-namestring p)))
+           (values :file
+                   `(:path ,(format nil "~:[~;/~]~{~a/~}~a"
+                                    (eq (first directory) :absolute) (rest directory) filename)))))
         ((string= u "mailto:" :end1 7)
          (values :mailto
                  `(:path ,(subseq u 7))))
@@ -494,16 +502,16 @@
                    `(:scheme ,(subseq u 0 i) :path ,(subseq u (1+ i))))))))
 
 (defun host-specific->canonical-path (path)
-  #+(and :mcl (not :openmcl))
+  #+:digitool
   (substitute #\/ #\: (subseq path (position #\: path)))
-  #+(or (not :mcl) :openmcl) ; = unix, since we do not do Windows yet (maybe never)
+  #-:digitool ; = unix, since we do not do Windows yet (maybe never)
   path)
 
 (defun canonical->host-specific-path (path)
-  #+(and :mcl (not :openmcl))
+  #+:digitool
   (let ((p (namestring (translate-logical-pathname "home:"))))
     (concatenate 'string (subseq p 0 (position #\: p)) (substitute #\: #\/ path)))
-  #+(or (not :mcl) :openmcl) ; = unix, since we do not do Windows yet (maybe never)
+  #-:digitool ; = unix, since we do not do Windows yet (maybe never)
   path)
 
 (defun make-file-url (pathname)
