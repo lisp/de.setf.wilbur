@@ -1,11 +1,8 @@
+# DE.SETF.WILBUR: a maintenance fork of net.sourceforge.wilbur
 
+## Introduction
 
-DE.SETF.WILBUR: a maintenance fork of net.sourceforge.wilbur
--------
-
-Introduction
-------------
- `de.setf.wilbur` is extends and updates the 2010-02-14 version of the "Wilbur Semantic Web Toolkit for CLOS" to maintain
+ `de.setf.wilbur` extends and updates the Feb 14, 2010 version of the "[Wilbur Semantic Web Toolkit for CLOS](http://wilbur-rdf.sourceforge.net/)" to maintain
 compatibility with Lisp runtimes.
 
  - MCL : 5.2
@@ -13,12 +10,22 @@ compatibility with Lisp runtimes.
 
 ## Downloading
 
-[github](http://github.com/lisp/de.setf.wilbur)
-
+You can download Wilbur from [GitHub](http://github.com/lisp/de.setf.wilbur) either by cloning repository or downloading all the source files in [a Zip archive](https://github.com/lisp/de.setf.wilbur/archive/master.zip).
 
 ## Building
 
-In principle, `de.setf.wilbur` is built with [`asdf`](http://www.common-lisp.net/projects/asdf).
+In principle, `de.setf.wilbur` is built with [`ASDF`](http://www.common-lisp.net/projects/asdf).
+
+If you have [Quicklisp β](http://www.quicklisp.org/beta/) then installing Wilbur is a single command task:
+```lisp
+(ql:quickload "wilbur")
+```
+
+This will install Wilbur and all its dependencies.
+
+## Documentation
+
+Additional information about Wilbur, manual, API reference and other useful titbits can be found [on the project Wiki.](https://github.com/lisp/de.setf.wilbur/wiki)
  
 ## Licensing
 
