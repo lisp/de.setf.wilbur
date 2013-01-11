@@ -16,7 +16,7 @@ You can download Wilbur from [GitHub](http://github.com/lisp/de.setf.wilbur) eit
 
 In principle, `de.setf.wilbur` is built with [`ASDF`](http://www.common-lisp.net/projects/asdf).
 
-If you have [Quicklisp β](http://www.quicklisp.org/beta/) then installing Wilbur is a single command task:
+If you have [Quicklisp](http://www.quicklisp.org/beta/) then installing Wilbur is a single command task:
 ```lisp
 (ql:quickload "wilbur")
 ```
