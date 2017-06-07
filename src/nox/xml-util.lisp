@@ -207,13 +207,21 @@
   (warn "No working WITHOUT-INTERRUPTS in this implementation")
   `(progn ,@body))
 
-#-:digitool
+#-(or :digitool :lispworks)
 (defmacro atomic-push (thing place)
   `(without-interrupts (push ,thing ,place)))
 
-#-:digitool
+#+:lispworks
+(defmacro atomic-push (thing place)
+  `(sys:atomic-push ,thing ,place))
+
+#-(or :digitool :lispworks)
 (defmacro atomic-pop (place)
   `(without-interrupts (pop ,place)))
+
+#+:lispworks
+(defmacro atomic-pop (place)
+  `(sys:atomic-pop ,place))
 
 (defun allocate-resource-from-pool (pool &rest args)
   #+:digitool
@@ -381,13 +389,13 @@
            (read-char stream t nil t) ; skip #\>
            (return (concatenate 'string (nreverse chars)))))))
 
-
-(defmacro whitespace-char-p (char)
-  (with-temps (c)
-    `(let ((,c ,char))
-       ;; let's assume this works for now :-)
-       (or (char= ,c #\Space)
-           (not (graphic-char-p ,c))))))
+(eval-when (:compile-toplevel :load-toplevel)
+  (defmacro whitespace-char-p (char)
+    (with-temps (c)
+      `(let ((,c ,char))
+         ;; let's assume this works for now :-)
+         (or (char= ,c #\Space)
+             (not (graphic-char-p ,c)))))))
 
 
 (defequal -whitespace-chars-
