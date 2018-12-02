@@ -31,6 +31,6 @@ Additional information about Wilbur, manual, API reference and other useful titb
 
 The library is governed by the original LLGPL license
 
-- [net.sourceforge.wilbur](wilbur-rdf.sourceforge.net/)
+- [net.sourceforge.wilbur](http://wilbur-rdf.sourceforge.net)
   - 2010 [Ora Lassila](ora.lassila@nokia.com)
 
