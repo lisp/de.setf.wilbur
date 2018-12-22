@@ -416,30 +416,20 @@
       char)))
 
 (defun collapse-whitespace (string)
-  ;; new version with "poor man's Unicode support" :-(
+  "Trims and replaces multiple whitespace char occurences with a
+single Space. Relies on the platform's unicode support."
+
+  ;; see also https://github.com/lisp/de.setf.wilbur/issues/4
   (labels ((collapse (mode old new)
 	     (if old
-	       (dsb (c &rest old) old
-		 (cond ((zerop (logand (char-code c) #b10000000))
-			(if (whitespace-char-p c)
-			  (collapse (if (eq mode :start) :start :white) old new)
-			  (collapse :collect old
-				    (if (eq mode :white)
-				      (list* c #\Space new)
-				      (cons c new)))))
-		       ((= (logand (char-code c) #b11100000) 192)
-			(collapse :collect (cdr old)
-				  (if (eq mode :white)
-				    (list* (car old) c #\Space new)
-				    (list* (car old) c new))))
-		       ((= (logand (char-code c) #b11110000) 224)
-			(collapse :collect (cddr old)
-				  (if (eq mode :white)
-				    (list* (cadr old) (car old) c #\Space new)
-				    (list* (cadr old) (car old) c new))))
-		       (t
-			(error "Cannot decode this: ~S" (cons c old)))))
-	       (concatenate 'string (nreverse new)))))
+		 (dsb (c &rest old) old
+		   (if (whitespace-char-p c)
+		       (collapse (if (eq mode :start) :start :white) old new)
+		       (collapse :collect old
+				 (if (eq mode :white)
+				     (list* c #\Space new)
+				     (cons c new)))))
+		 (concatenate 'string (nreverse new)))))
     (declare (dynamic-extent #'collapse))
     (collapse :start (coerce string 'list) nil)))
 
