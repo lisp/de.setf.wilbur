@@ -102,11 +102,12 @@
   (defequal -owl-uri-  "http://www.w3.org/2002/07/owl#")
   (defequal -daml-uri- "http://www.daml.org/2000/12/daml+oil#"))
 
-(defmacro rdf-uri (string)  `(concatenate 'string -rdf-uri- ,string))
-(defmacro rdfs-uri (string) `(concatenate 'string -rdfs-uri- ,string))
-(defmacro xsd-uri (string)  `(concatenate 'string -xsd-uri- ,string))
-(defmacro owl-uri (string)  `(concatenate 'string -owl-uri- ,string))
-(defmacro daml-uri (string) `(concatenate 'string -daml-uri- ,string))
+(eval-when (:compile-toplevel :load-toplevel)
+  (defmacro rdf-uri (string)  `(concatenate 'string -rdf-uri- ,string))
+  (defmacro rdfs-uri (string) `(concatenate 'string -rdfs-uri- ,string))
+  (defmacro xsd-uri (string)  `(concatenate 'string -xsd-uri- ,string))
+  (defmacro owl-uri (string)  `(concatenate 'string -owl-uri- ,string))
+  (defmacro daml-uri (string) `(concatenate 'string -daml-uri- ,string)))
 
 (defequal -alternate-rdf-uri-
   #."http://www.w3.org/TR/REC-rdf-syntax/")

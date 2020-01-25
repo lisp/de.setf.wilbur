@@ -123,7 +123,7 @@
 ;;;   LOCKS
 ;;;
 
-#-(and :digitool :CCL-5.2)              ; already defined
+#-(or lispworks (and :digitool :CCL-5.2))              ; already defined
 (defmacro with-lock ((lock &rest args) &body body)
   #+(or :digitool :clozure)  `(with-lock-grabbed (,lock ,@args) ,@body)
   #+:excl `(mp:with-process-lock (,lock ,@args) ,@body)
