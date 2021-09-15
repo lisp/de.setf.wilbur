@@ -382,12 +382,11 @@
            (return (concatenate 'string (nreverse chars)))))))
 
 
-(defmacro whitespace-char-p (char)
-  (with-temps (c)
-    `(let ((,c ,char))
-       ;; let's assume this works for now :-)
-       (or (char= ,c #\Space)
-           (not (graphic-char-p ,c))))))
+(defun whitespace-char-p (char)
+  "Return true if CHAR is a whitespace character.
+Argument CHAR has to be a character object."
+  (declare (type character char))
+  (or (char= char #\Space) (not (graphic-char-p char))))
 
 
 (defequal -whitespace-chars-
