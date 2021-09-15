@@ -415,32 +415,24 @@ Argument CHAR has to be a character object."
       char)))
 
 (defun collapse-whitespace (string)
-  ;; new version with "poor man's Unicode support" :-(
-  (labels ((collapse (mode old new)
-	     (if old
-	       (dsb (c &rest old) old
-		 (cond ((zerop (logand (char-code c) #b10000000))
-			(if (whitespace-char-p c)
-			  (collapse (if (eq mode :start) :start :white) old new)
-			  (collapse :collect old
-				    (if (eq mode :white)
-				      (list* c #\Space new)
-				      (cons c new)))))
-		       ((= (logand (char-code c) #b11100000) 192)
-			(collapse :collect (cdr old)
-				  (if (eq mode :white)
-				    (list* (car old) c #\Space new)
-				    (list* (car old) c new))))
-		       ((= (logand (char-code c) #b11110000) 224)
-			(collapse :collect (cddr old)
-				  (if (eq mode :white)
-				    (list* (cadr old) (car old) c #\Space new)
-				    (list* (cadr old) (car old) c new))))
-		       (t
-			(error "Cannot decode this: ~S" (cons c old)))))
-	       (concatenate 'string (nreverse new)))))
-    (declare (dynamic-extent #'collapse))
-    (collapse :start (coerce string 'list) nil)))
+  "Remove leading and trailing whitespace characters in STRING
+and replace any intermediate sequence of whitespace characters
+with a single space character."
+  (with-output-to-string (stream)
+    (loop :for char :across string
+	  :with state = :start
+	  :do (cond ((eq state :parse)
+		     (if (whitespace-char-p char)
+			 (setf state :space)
+		       (princ char stream)))
+		    ((not (whitespace-char-p char))
+		     ;; Found a non-whitespace character after skipping
+		     ;; a sequence of whitespace characters.
+		     (when (eq state :space)
+		       (princ #\Space stream))
+		     (princ char stream)
+		     (setf state :parse))
+		    ))))
 
 
 ;;; --------------------------------------------------------------------------------------
